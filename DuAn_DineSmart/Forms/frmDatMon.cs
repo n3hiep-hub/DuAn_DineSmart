@@ -182,15 +182,45 @@ namespace DuAn_DineSmart.Forms
                 int maDon = await _orderService.CreateOrderAsync(request);
                 MessageBox.Show($"Đã gửi bếp thành công! Mã đơn: #{maDon}", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show($"Không thể gửi bếp: {ex.Message}", "Lỗi dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            catch (Exception ex) when (IsOfflineFallbackCandidate(ex))
             {
                 SaveOfflineOrder(request);
                 MessageBox.Show("Mất kết nối DB. Đơn đã được lưu offline và sẽ đồng bộ lại khi có mạng.", "Offline fallback", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
             _gioMon.Clear();
             RefreshGio();
             LoadBanAn();
+        }
+
+        private static bool IsOfflineFallbackCandidate(Exception ex)
+        {
+            for (Exception? current = ex; current != null; current = current.InnerException)
+            {
+                if (current is TimeoutException || current is IOException)
+                {
+                    return true;
+                }
+
+                string exceptionName = current.GetType().Name;
+                if (exceptionName.Contains("SqlException", StringComparison.OrdinalIgnoreCase) ||
+                    exceptionName.Contains("DbException", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void SaveOfflineOrder(CreateOrderRequest request)
@@ -219,16 +249,34 @@ namespace DuAn_DineSmart.Forms
             if (list.Count == 0) return;
 
             var remain = new List<CreateOrderRequest>();
+            var hasInvalidOrder = false;
             foreach (var req in list)
             {
-                try { await _orderService.CreateOrderAsync(req); }
-                catch { remain.Add(req); }
+                try
+                {
+                    await _orderService.CreateOrderAsync(req);
+                }
+                catch (InvalidOperationException)
+                {
+                    hasInvalidOrder = true;
+                }
+                catch (Exception ex) when (IsOfflineFallbackCandidate(ex))
+                {
+                    remain.Add(req);
+                }
+                catch
+                {
+                    hasInvalidOrder = true;
+                }
             }
 
             if (remain.Count == 0)
             {
                 if (File.Exists(_offlinePath)) File.Delete(_offlinePath);
-                MessageBox.Show("Đã đồng bộ thành công các đơn offline.", "Đồng bộ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string message = hasInvalidOrder
+                    ? "Đã đồng bộ các đơn offline hợp lệ. Một số đơn lỗi dữ liệu đã bị bỏ qua."
+                    : "Đã đồng bộ thành công các đơn offline.";
+                MessageBox.Show(message, "Đồng bộ", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
