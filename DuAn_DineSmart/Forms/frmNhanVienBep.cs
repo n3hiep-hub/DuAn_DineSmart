@@ -1,39 +1,20 @@
 ﻿using DuAn_DineSmart.BLL;
 using DuAn_DineSmart.DAL;
 using DuAn_DineSmart.Models;
-using DineSmart.Services.Sync;
 using Microsoft.EntityFrameworkCore;
+using System.Media;
 
 namespace DuAn_DineSmart.Forms
 {
     public partial class frmNhanVienBep : Form
     {
-        private readonly PollingSyncService _polling = new();
+        private int _prevChoPhucVuCount = -1;
 
         public frmNhanVienBep() { InitializeComponent(); }
 
         private void frmNhanVienBep_Load(object sender, EventArgs e)
         {
             LoadDonHang();
-            _polling.Tick += Polling_Tick;
-            _polling.Start();
-        }
-
-        protected override void OnFormClosed(FormClosedEventArgs e)
-        {
-            _polling.Tick -= Polling_Tick;
-            _polling.Dispose();
-            base.OnFormClosed(e);
-        }
-
-        private void Polling_Tick(object? sender, EventArgs e)
-        {
-            if (IsDisposed || !IsHandleCreated) return;
-            BeginInvoke(new Action(() =>
-            {
-                lblTime.Text = DateTime.Now.ToString("HH:mm");
-                LoadDonHang();
-            }));
         }
 
         private void LoadDonHang()
@@ -52,7 +33,16 @@ namespace DuAn_DineSmart.Forms
                     .Count(d => d.TrangThai == TrangThaiDonHang.DaPhucVu
                              && d.ThoiGian.Date == DateTime.Today);
 
-                lblChoVal.Text = dsChoPhucVu.Count.ToString();
+                int soMon = dsChoPhucVu.Count;
+                if (_prevChoPhucVuCount >= 0 && soMon > _prevChoPhucVuCount)
+                {
+                    // Có món mới từ bếp — phát tiếng + nháy đỏ thẻ "Chờ mang ra bàn"
+                    SystemSounds.Beep.Play();
+                    FlashCard(cardCho, Color.FromArgb(220, 50, 50), Color.White);
+                }
+                _prevChoPhucVuCount = soMon;
+
+                lblChoVal.Text = soMon.ToString();
                 lblXongVal.Text = daPhucVu.ToString();
 
                 flpChoPhucVu.Controls.Clear();
@@ -166,6 +156,24 @@ namespace DuAn_DineSmart.Forms
                 db.SaveChanges();
             }
             LoadDonHang();
+        }
+
+        private static void FlashCard(Panel card, Color flashBg, Color flashFg)
+        {
+            Color origBg = card.BackColor;
+            Color origFg = card.Controls.OfType<Label>().FirstOrDefault()?.ForeColor ?? Color.Black;
+            card.BackColor = flashBg;
+            foreach (Control c in card.Controls) if (c is Label l) l.ForeColor = flashFg;
+
+            var t = new System.Windows.Forms.Timer { Interval = 1200 };
+            t.Tick += (s, e) =>
+            {
+                card.BackColor = origBg;
+                foreach (Control c in card.Controls) if (c is Label l) l.ForeColor = origFg;
+                t.Stop();
+                t.Dispose();
+            };
+            t.Start();
         }
     }
 }

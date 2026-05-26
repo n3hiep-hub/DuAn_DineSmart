@@ -27,6 +27,7 @@
             pnlTopbar = new Panel();
             lblPageTitle = new Label();
             pnlContent = new Panel();
+            pnlDashboard = new Panel();
             cardDoanhThu = new Panel();
             lblTitleDoanhThu = new Label();
             lblDoanhThu = new Label();
@@ -113,14 +114,19 @@
             lblPageTitle.Location = new Point(20, 14);
             lblPageTitle.AutoSize = true;
 
-            // pnlContent
-            pnlContent.BackColor = Color.FromArgb(245, 245, 245);
-            pnlContent.Dock = DockStyle.Fill;
-            pnlContent.AutoScroll = true;
-            pnlContent.Controls.AddRange(new Control[] {
+            // pnlDashboard – bọc tất cả widget dashboard, ẩn/hiện khi navigate
+            pnlDashboard.BackColor = Color.FromArgb(245, 245, 245);
+            pnlDashboard.Dock = DockStyle.Fill;
+            pnlDashboard.AutoScroll = true;
+            pnlDashboard.Controls.AddRange(new Control[] {
                 cardDoanhThu, cardBanAn, cardDonHang, cardNhanVien,
                 pnlBanAn, pnlDonHang
             });
+
+            // pnlContent – container chứa dashboard hoặc form nhúng
+            pnlContent.BackColor = Color.FromArgb(245, 245, 245);
+            pnlContent.Dock = DockStyle.Fill;
+            pnlContent.Controls.Add(pnlDashboard);
 
             // Helper card
             void SetupCard(Panel card, Label title, Label value,
@@ -225,7 +231,7 @@
             ResumeLayout(false);
         }
 
-        private Panel pnlSidebar, pnlTopbar, pnlContent;
+        private Panel pnlSidebar, pnlTopbar, pnlContent, pnlDashboard;
         private Panel cardDoanhThu, cardBanAn, cardDonHang, cardNhanVien;
         private Panel pnlBanAn, pnlDonHang;
         private Label lblLogo, lblSubtitle, lblPageTitle;

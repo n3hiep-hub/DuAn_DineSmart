@@ -76,8 +76,8 @@
             flpChoPhucVu.AutoScroll = true;
             flpChoPhucVu.BackColor = Color.FromArgb(245, 245, 245);
 
-            // Timer refresh 15 giây
-            timer1.Interval = 15000;
+            // Timer refresh 4 giây — đủ nhanh để phát hiện món mới từ bếp
+            timer1.Interval = 4000;
             timer1.Tick += (s, e) =>
             {
                 LoadDonHang();
