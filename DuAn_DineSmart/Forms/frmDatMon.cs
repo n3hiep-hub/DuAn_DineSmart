@@ -1,17 +1,33 @@
 ﻿using DuAn_DineSmart.DAL;
 using DuAn_DineSmart.Models;
+using DineSmart.Core.DTOs;
+using DineSmart.Data.Adapters;
+using DineSmart.Data.Repositories;
+using DineSmart.Services.Orders;
+using DineSmart.Services.Sync;
 
 namespace DuAn_DineSmart.Forms
 {
     public partial class frmDatMon : Form
     {
-        private DashboardDAL _dalBan = new();
+        private readonly DashboardDAL _dalBan = new();
+        private readonly OrderService _orderService;
         private List<ThucDon> _dsMonAn = new();
-        private Dictionary<int, (ThucDon mon, int soLuong)> _gioMon = new();
+        private readonly Dictionary<int, (ThucDon mon, int soLuong)> _gioMon = new();
         private int _maBanChon = -1;
         private string _filterDanhMuc = "Tất cả";
 
-        public frmDatMon() { InitializeComponent(); }
+        public frmDatMon()
+        {
+            InitializeComponent();
+
+            var dbFactory = new AppDbContextFactory();
+            _orderService = new OrderService(
+                new OrderRepository(dbFactory),
+                new MenuRepository(dbFactory),
+                new TableRepository(dbFactory),
+                new NoOpNotificationService());
+        }
 
         private void frmDatMon_Load(object sender, EventArgs e)
         {
@@ -49,7 +65,6 @@ namespace DuAn_DineSmart.Forms
             using var db = new AppDbContext();
             _dsMonAn = db.ThucDons.Where(m => m.TrangThai).ToList();
 
-            // Tạo nút danh mục
             pnlDanhMuc.Controls.Clear();
             var danhMucs = new[] { "Tất cả" }
                 .Concat(_dsMonAn.Select(m => m.DanhMuc).Distinct())
@@ -180,45 +195,28 @@ namespace DuAn_DineSmart.Forms
             lblTongTien.Text = $"Tổng: {tong:N0}đ";
         }
 
-        private void BtnGuiBep_Click(object? sender, EventArgs e)
+        private async void BtnGuiBep_Click(object? sender, EventArgs e)
         {
             if (_maBanChon < 0) { MessageBox.Show("Vui lòng chọn bàn!"); return; }
             if (_gioMon.Count == 0) { MessageBox.Show("Giỏ món đang trống!"); return; }
 
             try
             {
-                using var db = new AppDbContext();
-
-                // Tạo đơn hàng mới
-                var donHang = new DonHang
+                var request = new CreateOrderRequest
                 {
-                    MaBan = _maBanChon,
-                    SoMon = _gioMon.Values.Sum(v => v.soLuong),
-                    TrangThai = "Chờ bếp",
-                    TongTien = _gioMon.Values.Sum(v => v.mon.GiaTien * v.soLuong),
-                    ThoiGian = DateTime.Now
+                    TableId = _maBanChon,
+                    Items = _gioMon.Values
+                        .Select(v => new CreateOrderItemRequest
+                        {
+                            MenuItemId = v.mon.MaMon,
+                            Quantity = v.soLuong
+                        })
+                        .ToList()
                 };
-                db.DonHangs.Add(donHang);
-                db.SaveChanges();
 
-                // Thêm chi tiết
-                foreach (var kv in _gioMon)
-                {
-                    db.ChiTietDonHangs.Add(new ChiTietDonHang
-                    {
-                        MaDonHang = donHang.MaDonHang,
-                        MaMon = kv.Value.mon.MaMon,
-                        SoLuong = kv.Value.soLuong,
-                        DonGia = kv.Value.mon.GiaTien
-                    });
-                }
+                int maDon = await _orderService.CreateOrderAsync(request);
 
-                // Cập nhật trạng thái bàn
-                var ban = db.BanAns.Find(_maBanChon);
-                if (ban != null) ban.TrangThai = "Có khách";
-                db.SaveChanges();
-
-                MessageBox.Show("Đã gửi bếp thành công!", "Thành công",
+                MessageBox.Show($"Đã gửi bếp thành công! Mã đơn: #{maDon}", "Thành công",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 _gioMon.Clear();
