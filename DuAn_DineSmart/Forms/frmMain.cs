@@ -1,4 +1,4 @@
-﻿using DuAn_DineSmart.BLL;
+using DuAn_DineSmart.BLL;
 using DuAn_DineSmart.DAL;
 using DuAn_DineSmart.Models;
 
@@ -6,8 +6,9 @@ namespace DuAn_DineSmart.Forms
 {
     public partial class frmMain : Form
     {
-        private NguoiDung _nguoiDung;
-        private DashboardDAL _dal = new DashboardDAL();
+        private readonly NguoiDung _nguoiDung;
+        private readonly DashboardDAL _dal = new();
+        private Form? _childForm;
 
         public frmMain(NguoiDung nguoiDung)
         {
@@ -15,86 +16,130 @@ namespace DuAn_DineSmart.Forms
             _nguoiDung = nguoiDung;
         }
 
-        /*        private void frmMain_Load(object sender, EventArgs e)
-                {
-                    this.Text = $"DineSmart – {_nguoiDung.VaiTro}: {_nguoiDung.TenDangNhap}";
-                    // Kết nối các nút sidebar
-                    btnBanAn.Click += (s, ev) => new frmBanAn().Show();
-                    btnDatMon.Click += (s, ev) => new frmDatMon().Show();
-                    btnThucDon.Click += (s, ev) => new frmThucDon().Show();
-                    btnHoaDon.Click += (s, ev) => new frmHoaDon(_nguoiDung).Show();
-                    btnNhanVien.Click += (s, ev) => new frmNhanVien().Show();
-                    btnBaoCao.Click += (s, ev) => new frmBaoCao().Show();
-                    LoadDashboard();
-                }*/
         private void frmMain_Load(object sender, EventArgs e)
         {
-            this.Text = $"DineSmart – {_nguoiDung.VaiTro}: {_nguoiDung.TenDangNhap}";
+            Text = $"DineSmart – {_nguoiDung.VaiTro}: {_nguoiDung.TenDangNhap}";
             ApDungPhanQuyen();
-            LoadDashboard();
         }
+
+        // ─── Phân quyền & wire-up nút sidebar ────────────────────────────────
         private void ApDungPhanQuyen()
         {
             string vt = _nguoiDung.VaiTro;
 
-            // Ẩn/hiện nút sidebar theo vai trò
             btnDashboard.Visible = PhanQuyen.CoQuyen(vt, "Dashboard");
-            btnBanAn.Visible = PhanQuyen.CoQuyen(vt, "BanAn");
-            btnDatMon.Visible = PhanQuyen.CoQuyen(vt, "DatMon");
-            btnThucDon.Visible = PhanQuyen.CoQuyen(vt, "ThucDon");
-            btnHoaDon.Visible = PhanQuyen.CoQuyen(vt, "HoaDon");
-            btnNhanVien.Visible = PhanQuyen.CoQuyen(vt, "NhanVien");
-            btnBaoCao.Visible = PhanQuyen.CoQuyen(vt, "BaoCao");
-            btnBep.Visible = PhanQuyen.CoQuyen(vt, "BepMan");
-            btnPhucVu.Visible = PhanQuyen.CoQuyen(vt, "PhucVu");
+            btnBanAn.Visible     = PhanQuyen.CoQuyen(vt, "BanAn");
+            btnDatMon.Visible    = PhanQuyen.CoQuyen(vt, "DatMon");
+            btnThucDon.Visible   = PhanQuyen.CoQuyen(vt, "ThucDon");
+            btnHoaDon.Visible    = PhanQuyen.CoQuyen(vt, "HoaDon");
+            btnNhanVien.Visible  = PhanQuyen.CoQuyen(vt, "NhanVien");
+            btnBaoCao.Visible    = PhanQuyen.CoQuyen(vt, "BaoCao");
+            btnBep.Visible       = PhanQuyen.CoQuyen(vt, "BepMan");
+            btnPhucVu.Visible    = PhanQuyen.CoQuyen(vt, "PhucVu");
 
-            // Kết nối sự kiện click
-            if (PhanQuyen.CoQuyen(vt, "BanAn"))
-                btnBanAn.Click += (s, ev) => new frmBanAn().Show();
+            if (btnDashboard.Visible)
+                btnDashboard.Click += (s, e) => NavigateTo(null, "Dashboard", btnDashboard);
 
-            if (PhanQuyen.CoQuyen(vt, "DatMon"))
-                btnDatMon.Click += (s, ev) => new frmDatMon().Show();
+            if (btnBanAn.Visible)
+                btnBanAn.Click += (s, e) => NavigateTo(new frmBanAn(), "Bàn ăn", btnBanAn);
 
-            if (PhanQuyen.CoQuyen(vt, "ThucDon"))
-                btnThucDon.Click += (s, ev) => new frmThucDon().Show();
+            if (btnDatMon.Visible)
+                btnDatMon.Click += (s, e) => NavigateTo(new frmDatMon(), "Đặt món", btnDatMon);
 
-            if (PhanQuyen.CoQuyen(vt, "HoaDon"))
-                btnHoaDon.Click += (s, ev) => new frmHoaDon(_nguoiDung).Show();
+            if (btnThucDon.Visible)
+                btnThucDon.Click += (s, e) => NavigateTo(new frmThucDon(), "Thực đơn", btnThucDon);
 
-            if (PhanQuyen.CoQuyen(vt, "NhanVien"))
-                btnNhanVien.Click += (s, ev) => new frmNhanVien().Show();
+            if (btnHoaDon.Visible)
+                btnHoaDon.Click += (s, e) => NavigateTo(new frmHoaDon(_nguoiDung), "Hóa đơn", btnHoaDon);
 
-            if (PhanQuyen.CoQuyen(vt, "BaoCao"))
-                btnBaoCao.Click += (s, ev) => new frmBaoCao().Show();
+            if (btnBep.Visible)
+                btnBep.Click += (s, e) => NavigateTo(new frmBep(), "Màn hình bếp", btnBep);
 
-            if (PhanQuyen.CoQuyen(vt, "BepMan"))
-                btnBep.Click += (s, ev) => new frmBep().Show();
+            if (btnPhucVu.Visible)
+                btnPhucVu.Click += (s, e) => NavigateTo(new frmNhanVienBep(), "Thông báo phục vụ", btnPhucVu);
 
-            if (PhanQuyen.CoQuyen(vt, "PhucVu"))
-                btnPhucVu.Click += (s, ev) => new frmNhanVienBep().Show();
-            
-            // Nếu không có quyền Dashboard, chuyển thẳng sang màn hình phù hợp
-            if (!PhanQuyen.CoQuyen(vt, "Dashboard"))
+            if (btnNhanVien.Visible)
+                btnNhanVien.Click += (s, e) => NavigateTo(new frmNhanVien(), "Nhân viên", btnNhanVien);
+
+            if (btnBaoCao.Visible)
+                btnBaoCao.Click += (s, e) => NavigateTo(new frmBaoCao(), "Báo cáo", btnBaoCao);
+
+            // Màn hình mặc định theo vai trò
+            if (PhanQuyen.CoQuyen(vt, "Dashboard"))
+                NavigateTo(null, "Dashboard", btnDashboard);
+            else if (PhanQuyen.CoQuyen(vt, "BepMan"))
+                NavigateTo(new frmBep(), "Màn hình bếp", btnBep);
+            else if (PhanQuyen.CoQuyen(vt, "PhucVu"))
+                NavigateTo(new frmNhanVienBep(), "Thông báo phục vụ", btnPhucVu);
+            else if (PhanQuyen.CoQuyen(vt, "DatMon"))
+                NavigateTo(new frmDatMon(), "Đặt món", btnDatMon);
+            else if (PhanQuyen.CoQuyen(vt, "HoaDon"))
+                NavigateTo(new frmHoaDon(_nguoiDung), "Hóa đơn", btnHoaDon);
+        }
+
+        // ─── Core navigation: nhúng form vào pnlContent ──────────────────────
+        private void NavigateTo(Form? form, string pageTitle, Button activeBtn)
+        {
+            // Dọn form cũ
+            if (_childForm != null && !_childForm.IsDisposed)
             {
-                pnlContent.Visible = false;
-                lblPageTitle.Text = $"Xin chào, {_nguoiDung.TenDangNhap}!";
+                _childForm.Close();
+                _childForm.Dispose();
+            }
+            _childForm = null;
+            foreach (Control c in pnlContent.Controls.OfType<Form>().ToList())
+                pnlContent.Controls.Remove(c);
 
-                if (PhanQuyen.CoQuyen(vt, "DatMon"))
-                    btnDatMon.PerformClick();
-                else if (PhanQuyen.CoQuyen(vt, "HoaDon"))
-                    btnHoaDon.PerformClick();
-                else if (PhanQuyen.CoQuyen(vt, "BepMan"))
-                    MessageBox.Show("Chào mừng đến màn hình bếp!", "Bếp");
+            lblPageTitle.Text = pageTitle;
+            SetActiveSidebarButton(activeBtn);
+
+            if (form == null)
+            {
+                // Về Dashboard – refresh dữ liệu mới nhất
+                pnlDashboard.Visible = true;
+                LoadDashboard();
+                return;
+            }
+
+            // Nhúng form vào panel chính
+            pnlDashboard.Visible = false;
+            form.TopLevel = false;
+            form.FormBorderStyle = FormBorderStyle.None;
+            form.Dock = DockStyle.Fill;
+            pnlContent.Controls.Add(form);
+            form.BringToFront();
+            form.Show();
+
+            // Ẩn thanh tiêu đề riêng của form (đã có topbar frmMain)
+            var innerTop = form.Controls.Find("pnlTop", false).FirstOrDefault();
+            if (innerTop != null) innerTop.Visible = false;
+
+            _childForm = form;
+        }
+
+        private void SetActiveSidebarButton(Button active)
+        {
+            Button[] all = { btnDashboard, btnBanAn, btnDatMon, btnThucDon,
+                             btnHoaDon, btnBep, btnPhucVu, btnNhanVien, btnBaoCao };
+            foreach (var b in all)
+            {
+                if (b == null) continue;
+                bool isActive = b == active;
+                b.BackColor = isActive ? Color.FromArgb(145, 35, 25) : Color.FromArgb(192, 57, 43);
+                b.Font = new Font("Segoe UI", 10, isActive ? FontStyle.Bold : FontStyle.Regular);
             }
         }
+
+        // ─── Dashboard content ────────────────────────────────────────────────
         private void LoadDashboard()
         {
             try
             {
                 lblDoanhThu.Text = _dal.GetDoanhThuHomNay().ToString("N0") + " đ";
                 var (busy, tong) = _dal.GetThongKeBan();
-                lblBanAn.Text = $"{busy} / {tong}";
+                lblBanAn.Text  = $"{busy} / {tong}";
                 lblDonHang.Text = _dal.GetDonHangHomNay().ToString();
+                lblNhanVien.Text = "—";
                 LoadBanAn();
                 LoadDonHang();
             }
@@ -108,9 +153,7 @@ namespace DuAn_DineSmart.Forms
         private void LoadBanAn()
         {
             flpBanAn.Controls.Clear();
-            var dsBan = _dal.GetAllBan();
-
-            foreach (var ban in dsBan)
+            foreach (var ban in _dal.GetAllBan())
             {
                 var btn = new Button
                 {
@@ -122,25 +165,12 @@ namespace DuAn_DineSmart.Forms
                     TextAlign = ContentAlignment.MiddleCenter
                 };
                 btn.FlatAppearance.BorderSize = 1;
-
-                switch (ban.TrangThai)
+                (btn.BackColor, btn.ForeColor, btn.FlatAppearance.BorderColor) = ban.TrangThai switch
                 {
-                    case "Có khách":
-                        btn.BackColor = Color.FromArgb(252, 235, 235);
-                        btn.ForeColor = Color.FromArgb(163, 45, 45);
-                        btn.FlatAppearance.BorderColor = Color.FromArgb(226, 75, 74);
-                        break;
-                    case "Đặt trước":
-                        btn.BackColor = Color.FromArgb(250, 238, 218);
-                        btn.ForeColor = Color.FromArgb(99, 56, 6);
-                        btn.FlatAppearance.BorderColor = Color.FromArgb(239, 159, 39);
-                        break;
-                    default:
-                        btn.BackColor = Color.FromArgb(234, 243, 222);
-                        btn.ForeColor = Color.FromArgb(39, 80, 10);
-                        btn.FlatAppearance.BorderColor = Color.FromArgb(99, 153, 34);
-                        break;
-                }
+                    "Có khách"  => (Color.FromArgb(252, 235, 235), Color.FromArgb(163, 45, 45),  Color.FromArgb(226, 75, 74)),
+                    "Đặt trước" => (Color.FromArgb(250, 238, 218), Color.FromArgb(99, 56, 6),    Color.FromArgb(239, 159, 39)),
+                    _           => (Color.FromArgb(234, 243, 222), Color.FromArgb(39, 80, 10),   Color.FromArgb(99, 153, 34)),
+                };
                 flpBanAn.Controls.Add(btn);
             }
         }
@@ -148,21 +178,18 @@ namespace DuAn_DineSmart.Forms
         private void LoadDonHang()
         {
             lvDonHang.Items.Clear();
-            var dsOrder = _dal.GetDonHangGanDay();
-
-            foreach (var dh in dsOrder)
+            foreach (var dh in _dal.GetDonHangGanDay())
             {
                 var item = new ListViewItem(dh.Ban?.TenBan ?? $"Bàn {dh.MaBan}");
                 item.SubItems.Add($"{dh.SoMon} món");
                 item.SubItems.Add(dh.TrangThai);
                 item.SubItems.Add(dh.TongTien.ToString("N0") + "đ");
-
                 item.ForeColor = dh.TrangThai switch
                 {
-                    "Hoàn thành" => Color.FromArgb(39, 80, 10),
-                    "Đã phục vụ" => Color.FromArgb(8, 80, 65),
-                    "Chờ phục vụ" => Color.FromArgb(12, 68, 124),
-                    _ => Color.FromArgb(99, 56, 6)
+                    "Hoàn thành"   => Color.FromArgb(39, 80, 10),
+                    "Đã phục vụ"   => Color.FromArgb(8, 80, 65),
+                    "Chờ phục vụ"  => Color.FromArgb(12, 68, 124),
+                    _              => Color.FromArgb(99, 56, 6)
                 };
                 lvDonHang.Items.Add(item);
             }
