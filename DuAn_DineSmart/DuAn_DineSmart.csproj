@@ -13,4 +13,10 @@
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\DineSmart.Core\**\*.cs" LinkBase="DineSmart.Core" />
+    <Compile Include="..\DineSmart.Data\**\*.cs" LinkBase="DineSmart.Data" />
+    <Compile Include="..\DineSmart.Services\**\*.cs" LinkBase="DineSmart.Services" />
+  </ItemGroup>
+
 </Project>
