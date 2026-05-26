@@ -9,6 +9,7 @@ namespace DuAn_DineSmart.Forms
         private readonly NguoiDung _nguoiDung;
         private readonly DashboardDAL _dal = new();
         private Form? _childForm;
+        private System.Windows.Forms.Timer? _badgeTimer;
 
         public frmMain(NguoiDung nguoiDung)
         {
@@ -64,6 +65,15 @@ namespace DuAn_DineSmart.Forms
             if (btnBaoCao.Visible)
                 btnBaoCao.Click += (s, e) => NavigateTo(new frmBaoCao(), "Báo cáo", btnBaoCao);
 
+            // Badge "Chờ phục vụ" trên nút sidebar — chỉ cho vai trò có quyền PhucVu
+            if (PhanQuyen.CoQuyen(vt, "PhucVu"))
+            {
+                _badgeTimer = new System.Windows.Forms.Timer { Interval = 5000 };
+                _badgeTimer.Tick += (s, e) => CapNhatBadgePhucVu();
+                _badgeTimer.Start();
+                CapNhatBadgePhucVu();
+            }
+
             // Màn hình mặc định theo vai trò
             if (PhanQuyen.CoQuyen(vt, "Dashboard"))
                 NavigateTo(null, "Dashboard", btnDashboard);
@@ -75,6 +85,26 @@ namespace DuAn_DineSmart.Forms
                 NavigateTo(new frmDatMon(), "Đặt món", btnDatMon);
             else if (PhanQuyen.CoQuyen(vt, "HoaDon"))
                 NavigateTo(new frmHoaDon(_nguoiDung), "Hóa đơn", btnHoaDon);
+        }
+
+        private void CapNhatBadgePhucVu()
+        {
+            try
+            {
+                int so = _dal.GetChoPhucVuCount();
+                btnPhucVu.Text = so > 0
+                    ? $"  Thông báo ({so})"
+                    : "  Thông báo phục vụ";
+                btnPhucVu.ForeColor = so > 0 ? Color.FromArgb(255, 220, 100) : Color.White;
+            }
+            catch { /* bỏ qua lỗi polling */ }
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _badgeTimer?.Stop();
+            _badgeTimer?.Dispose();
+            base.OnFormClosed(e);
         }
 
         // ─── Core navigation: nhúng form vào pnlContent ──────────────────────
