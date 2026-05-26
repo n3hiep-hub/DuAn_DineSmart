@@ -84,7 +84,8 @@ namespace DuAn_DineSmart.Forms
             }
 
             using var db = new AppDbContext();
-            bool tonTaiTen = db.BanAns.Any(b => b.TenBan == tenBan && b.MaBan != (_ban?.MaBan ?? 0));
+            int maBanHienTai = _ban?.MaBan ?? 0;
+            bool tonTaiTen = db.BanAns.Any(b => b.TenBan == tenBan && b.MaBan != maBanHienTai);
             if (tonTaiTen)
             {
                 MessageBox.Show("Tên bàn đã tồn tại. Vui lòng nhập tên khác!", "Thông báo");

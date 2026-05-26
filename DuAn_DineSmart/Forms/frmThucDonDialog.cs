@@ -90,7 +90,8 @@ namespace DuAn_DineSmart.Forms
             }
 
             using var db = new AppDbContext();
-            bool tonTaiTen = db.ThucDons.Any(m => m.TenMon == tenMon && m.MaMon != (_mon?.MaMon ?? 0));
+            int maMonHienTai = _mon?.MaMon ?? 0;
+            bool tonTaiTen = db.ThucDons.Any(m => m.TenMon == tenMon && m.MaMon != maMonHienTai);
             if (tonTaiTen)
             {
                 MessageBox.Show("Tên món đã tồn tại. Vui lòng nhập tên khác!", "Thông báo");

@@ -41,10 +41,10 @@ public class MenuRepository : IMenuRepository
             {
                 Id = m.MaMon,
                 Name = m.TenMon,
-                Description = m.MoTa,
+                Description = string.Empty,
                 Price = m.GiaTien,
                 CategoryId = 0,
-                ImagePath = m.HinhAnh,
+                ImagePath = null,
                 IsActive = m.TrangThai
             })
             .ToList();
@@ -61,10 +61,10 @@ public class MenuRepository : IMenuRepository
             {
                 Id = m.MaMon,
                 Name = m.TenMon,
-                Description = m.MoTa,
+                Description = string.Empty,
                 Price = m.GiaTien,
                 CategoryId = 0,
-                ImagePath = m.HinhAnh,
+                ImagePath = null,
                 IsActive = m.TrangThai
             })
             .FirstOrDefault();
