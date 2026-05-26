@@ -48,5 +48,12 @@ namespace DuAn_DineSmart.DAL
             return db.DonHangs
                 .Count(d => d.ThoiGian.Date == DateTime.Today);
         }
+
+        // Số đơn bếp đã xong, đang chờ nhân viên mang ra bàn
+        public int GetChoPhucVuCount()
+        {
+            using var db = new AppDbContext();
+            return db.DonHangs.Count(d => d.TrangThai == BLL.TrangThaiDonHang.ChoPhucVu);
+        }
     }
 }
