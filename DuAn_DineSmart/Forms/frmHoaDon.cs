@@ -9,7 +9,8 @@ namespace DuAn_DineSmart.Forms
     public partial class frmHoaDon : Form
     {
         private List<BanAn> _dsBan = new();
-        private DonHang? _donHangHienTai;
+        private DonHang? _donHangHienTai;          // đơn đại diện (dùng cho ref MaBan)
+        private List<DonHang> _dsDonHangHienTai = new(); // tất cả đơn chưa TT của bàn
         private string _phuongThuc = "Tiền mặt";
         private readonly NguoiDung _nguoiDung;
         private decimal _tamTinh;
@@ -102,10 +103,13 @@ namespace DuAn_DineSmart.Forms
         {
             using var db = new AppDbContext();
 
-            _donHangHienTai = db.DonHangs
+            // Lấy TẤT CẢ đơn chưa thanh toán của bàn (khách có thể gọi nhiều lượt)
+            _dsDonHangHienTai = db.DonHangs
                 .Where(d => d.MaBan == ban.MaBan && d.TrangThai != TrangThaiDonHang.HoanThanh)
-                .OrderByDescending(d => d.ThoiGian)
-                .FirstOrDefault();
+                .OrderBy(d => d.ThoiGian)
+                .ToList();
+
+            _donHangHienTai = _dsDonHangHienTai.LastOrDefault();
 
             lblBanInfo.Text = $"{ban.TenBan}  |  {DateTime.Now:dd/MM/yyyy HH:mm}";
             lblNVInfo.Text = $"Thu ngân: {_nguoiDung.TenDangNhap}";
@@ -113,10 +117,11 @@ namespace DuAn_DineSmart.Forms
             lvChiTiet.Items.Clear();
             _tamTinh = 0;
 
-            if (_donHangHienTai != null)
+            // Gộp chi tiết của tất cả đơn
+            foreach (var dh in _dsDonHangHienTai)
             {
                 var chiTiet = db.ChiTietDonHangs
-                    .Where(c => c.MaDonHang == _donHangHienTai.MaDonHang)
+                    .Where(c => c.MaDonHang == dh.MaDonHang)
                     .ToList();
 
                 foreach (var ct in chiTiet)
@@ -129,6 +134,13 @@ namespace DuAn_DineSmart.Forms
                     item.SubItems.Add(ct.SoLuong.ToString());
                     item.SubItems.Add(ct.DonGia.ToString("N0") + "đ");
                     item.SubItems.Add(thanh.ToString("N0") + "đ");
+                    // Đánh dấu món chưa phục vụ bằng màu cam
+                    if (dh.TrangThai == TrangThaiDonHang.ChoBep ||
+                        dh.TrangThai == TrangThaiDonHang.DangLam ||
+                        dh.TrangThai == TrangThaiDonHang.ChoPhucVu)
+                    {
+                        item.ForeColor = Color.FromArgb(180, 80, 0);
+                    }
                     lvChiTiet.Items.Add(item);
                 }
             }
@@ -258,10 +270,24 @@ namespace DuAn_DineSmart.Forms
 
         private void BtnThanhToan_Click(object? sender, EventArgs e)
         {
-            if (_donHangHienTai == null)
+            if (_donHangHienTai == null || _dsDonHangHienTai.Count == 0)
             {
                 MessageBox.Show("Vui lòng chọn bàn!", "Thông báo");
                 return;
+            }
+
+            // Cảnh báo nếu còn món bếp chưa xong hoặc chưa mang ra
+            bool conChuaPhucVu = _dsDonHangHienTai.Any(d =>
+                d.TrangThai == TrangThaiDonHang.ChoBep ||
+                d.TrangThai == TrangThaiDonHang.DangLam ||
+                d.TrangThai == TrangThaiDonHang.ChoPhucVu);
+
+            if (conChuaPhucVu)
+            {
+                var canh = MessageBox.Show(
+                    "Một số món vẫn chưa được phục vụ đầy đủ (hiển thị màu cam).\nVẫn tiếp tục thanh toán?",
+                    "Cảnh báo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (canh != DialogResult.Yes) return;
             }
 
             var xn = MessageBox.Show(
@@ -274,14 +300,20 @@ namespace DuAn_DineSmart.Forms
             {
                 using var db = new AppDbContext();
 
-                var dh = db.DonHangs.Find(_donHangHienTai.MaDonHang);
-                if (dh != null)
+                // Đánh dấu TẤT CẢ đơn của bàn là Hoàn thành
+                var maBan = _donHangHienTai.MaBan;
+                var dsDb = db.DonHangs
+                    .Where(d => d.MaBan == maBan && d.TrangThai != TrangThaiDonHang.HoanThanh)
+                    .ToList();
+
+                for (int i = 0; i < dsDb.Count; i++)
                 {
-                    dh.TrangThai = TrangThaiDonHang.HoanThanh;
-                    dh.TongTien = _tongThanhToan;
+                    dsDb[i].TrangThai = TrangThaiDonHang.HoanThanh;
+                    // Lưu tổng tiền thực tế vào đơn cuối (sau giảm giá), các đơn trước = 0
+                    dsDb[i].TongTien = i == dsDb.Count - 1 ? _tongThanhToan : 0;
                 }
 
-                var ban = db.BanAns.Find(_donHangHienTai.MaBan);
+                var ban = db.BanAns.Find(maBan);
                 if (ban != null) ban.TrangThai = "Trống";
 
                 db.SaveChanges();
@@ -290,6 +322,7 @@ namespace DuAn_DineSmart.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 _donHangHienTai = null;
+                _dsDonHangHienTai.Clear();
                 lvChiTiet.Items.Clear();
                 _tamTinh = 0;
                 _giamGia = 0;

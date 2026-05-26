@@ -42,7 +42,7 @@ namespace DuAn_DineSmart.Forms
                 btnDashboard.Click += (s, e) => NavigateTo(null, "Dashboard", btnDashboard);
 
             if (btnBanAn.Visible)
-                btnBanAn.Click += (s, e) => NavigateTo(new frmBanAn(), "Bàn ăn", btnBanAn);
+                btnBanAn.Click += (s, e) => NavigateTo(new frmBanAn(_nguoiDung.VaiTro), "Bàn ăn", btnBanAn);
 
             if (btnDatMon.Visible)
                 btnDatMon.Click += (s, e) => NavigateTo(new frmDatMon(), "Đặt món", btnDatMon);

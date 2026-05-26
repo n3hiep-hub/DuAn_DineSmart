@@ -8,10 +8,12 @@ namespace DuAn_DineSmart.Forms
         private DashboardDAL _dal = new DashboardDAL();
         private List<BanAn> _dsBan = new();
         private string _filterHienTai = "Tất cả";
+        private readonly bool _coQuyenSua;
 
-        public frmBanAn()
+        public frmBanAn(string vaiTro = "")
         {
             InitializeComponent();
+            _coQuyenSua = vaiTro == "Quản lý";
         }
 
         private void frmBanAn_Load(object sender, EventArgs e)
@@ -20,7 +22,12 @@ namespace DuAn_DineSmart.Forms
             btnFilterTrong.Click += (s, ev) => ApplyFilter("Trống");
             btnFilterCoKhach.Click += (s, ev) => ApplyFilter("Có khách");
             btnFilterDatTruoc.Click += (s, ev) => ApplyFilter("Đặt trước");
-            btnThemBan.Click += BtnThemBan_Click;
+
+            if (_coQuyenSua)
+                btnThemBan.Click += BtnThemBan_Click;
+            else
+                btnThemBan.Visible = false;
+
             LoadBanAn();
         }
 
@@ -134,9 +141,17 @@ namespace DuAn_DineSmart.Forms
 
                 card.Controls.Add(lblTen);
                 card.Controls.Add(lblTT);
-                card.Click += Card_Click;
-                lblTen.Click += Card_Click;
-                lblTT.Click += Card_Click;
+
+                if (_coQuyenSua)
+                {
+                    card.Click += Card_Click;
+                    lblTen.Click += Card_Click;
+                    lblTT.Click += Card_Click;
+                }
+                else
+                {
+                    card.Cursor = Cursors.Default;
+                }
 
                 flpBanAn.Controls.Add(card);
             }

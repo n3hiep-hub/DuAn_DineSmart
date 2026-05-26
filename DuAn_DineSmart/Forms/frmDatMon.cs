@@ -57,10 +57,25 @@ namespace DuAn_DineSmart.Forms
             if (idx < 0) return;
             var ban = dsBan[idx];
             _maBanChon = ban.MaBan;
-            lblBanHienTai.Text = $"{ban.TenBan} – {ban.TrangThai}";
             lblTitleGio.Text = $"GIỎ MÓN – {ban.TenBan}";
             _gioMon.Clear();
             RefreshGio();
+
+            // Hiển thị thông tin đơn đang mở của bàn
+            if (ban.TrangThai == "Có khách")
+            {
+                using var db = new AppDbContext();
+                int soMon = db.DonHangs
+                    .Where(d => d.MaBan == ban.MaBan && d.TrangThai != BLL.TrangThaiDonHang.HoanThanh)
+                    .Sum(d => (int?)d.SoMon) ?? 0;
+                lblBanHienTai.Text = soMon > 0
+                    ? $"{ban.TenBan} – Có khách  (đã gọi {soMon} món)"
+                    : $"{ban.TenBan} – {ban.TrangThai}";
+            }
+            else
+            {
+                lblBanHienTai.Text = $"{ban.TenBan} – {ban.TrangThai}";
+            }
         }
 
         private void LoadThucDon()
