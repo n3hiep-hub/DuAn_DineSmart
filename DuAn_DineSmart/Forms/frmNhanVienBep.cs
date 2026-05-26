@@ -49,7 +49,7 @@ namespace DuAn_DineSmart.Forms
                     .ToList();
 
                 int daPhucVu = db.DonHangs
-                    .Count(d => d.TrangThai == TrangThaiDonHang.HoanThanh
+                    .Count(d => d.TrangThai == TrangThaiDonHang.DaPhucVu
                              && d.ThoiGian.Date == DateTime.Today);
 
                 lblChoVal.Text = dsChoPhucVu.Count.ToString();
@@ -162,7 +162,7 @@ namespace DuAn_DineSmart.Forms
             var dh = db.DonHangs.Find(maDH);
             if (dh != null)
             {
-                dh.TrangThai = TrangThaiDonHang.HoanThanh;
+                dh.TrangThai = TrangThaiDonHang.DaPhucVu;
                 db.SaveChanges();
             }
             LoadDonHang();

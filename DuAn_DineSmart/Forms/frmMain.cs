@@ -160,7 +160,8 @@ namespace DuAn_DineSmart.Forms
                 item.ForeColor = dh.TrangThai switch
                 {
                     "Hoàn thành" => Color.FromArgb(39, 80, 10),
-                    "Đang phục vụ" => Color.FromArgb(8, 80, 65),
+                    "Đã phục vụ" => Color.FromArgb(8, 80, 65),
+                    "Chờ phục vụ" => Color.FromArgb(12, 68, 124),
                     _ => Color.FromArgb(99, 56, 6)
                 };
                 lvDonHang.Items.Add(item);

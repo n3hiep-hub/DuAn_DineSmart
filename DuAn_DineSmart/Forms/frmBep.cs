@@ -55,7 +55,9 @@ namespace DuAn_DineSmart.Forms
                     .ToList();
 
                 int xong = db.DonHangs
-                    .Count(d => d.TrangThai == TrangThaiDonHang.HoanThanh
+                    .Count(d => (d.TrangThai == TrangThaiDonHang.ChoPhucVu
+                              || d.TrangThai == TrangThaiDonHang.DaPhucVu
+                              || d.TrangThai == TrangThaiDonHang.HoanThanh)
                              && d.ThoiGian.Date == DateTime.Today);
 
                 lblChoVal.Text = dsChoBep.Count.ToString();
