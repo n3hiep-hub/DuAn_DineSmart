@@ -187,6 +187,8 @@ namespace DuAn_DineSmart.Forms
 
         private void PrintDocument_PrintPage(object? sender, PrintPageEventArgs e)
         {
+            if (e.Graphics == null) return;
+
             string content = BuildBillText();
             using var font = new Font("Consolas", 10);
             e.Graphics.DrawString(content, font, Brushes.Black, new RectangleF(20, 20, e.MarginBounds.Width, e.MarginBounds.Height));

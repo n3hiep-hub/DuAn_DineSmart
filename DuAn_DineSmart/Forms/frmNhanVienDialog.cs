@@ -5,10 +5,14 @@ namespace DuAn_DineSmart.Forms
 {
     public partial class frmNhanVienDialog : Form
     {
-        private NguoiDung? _nv;
-        private TextBox txtTen, txtMK;
-        private ComboBox cmbVaiTro, cmbTrangThai;
-        private Button btnLuu, btnXoa, btnHuy;
+        private readonly NguoiDung? _nv;
+        private TextBox txtTen = null!;
+        private TextBox txtMK = null!;
+        private ComboBox cmbVaiTro = null!;
+        private ComboBox cmbTrangThai = null!;
+        private Button btnLuu = null!;
+        private Button btnXoa = null!;
+        private Button btnHuy = null!;
 
         public frmNhanVienDialog(NguoiDung? nv)
         {
