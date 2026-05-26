@@ -5,10 +5,11 @@ namespace DuAn_DineSmart.Forms
 {
     public partial class frmBanAnDialog : Form
     {
-        private BanAn? _ban;
-        private TextBox txtTenBan;
-        private ComboBox cmbTrangThai;
-        private Button btnLuu, btnXoa, btnHuy;
+        private readonly BanAn? _ban;
+        private TextBox txtTenBan = null!;
+        private ComboBox cmbTrangThai = null!;
+        private Button btnLuu = null!;
+        private Button btnXoa = null!;
 
         public frmBanAnDialog(BanAn? ban)
         {
@@ -27,7 +28,8 @@ namespace DuAn_DineSmart.Forms
             Size = new Size(320, 240);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false; MinimizeBox = false;
+            MaximizeBox = false;
+            MinimizeBox = false;
 
             var lblTen = new Label { Text = "Tên bàn", Location = new Point(20, 20), AutoSize = true };
             txtTenBan = new TextBox { Location = new Point(20, 42), Size = new Size(260, 28) };
@@ -73,19 +75,29 @@ namespace DuAn_DineSmart.Forms
 
         private void BtnLuu_Click(object? sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtTenBan.Text))
+            var tenBan = txtTenBan.Text.Trim();
+            if (string.IsNullOrWhiteSpace(tenBan))
             {
                 MessageBox.Show("Vui lòng nhập tên bàn!", "Thông báo");
                 DialogResult = DialogResult.None;
                 return;
             }
 
-            using var db = new DAL.AppDbContext();
+            using var db = new AppDbContext();
+            int maBanHienTai = _ban?.MaBan ?? 0;
+            bool tonTaiTen = db.BanAns.Any(b => b.TenBan == tenBan && b.MaBan != maBanHienTai);
+            if (tonTaiTen)
+            {
+                MessageBox.Show("Tên bàn đã tồn tại. Vui lòng nhập tên khác!", "Thông báo");
+                DialogResult = DialogResult.None;
+                return;
+            }
+
             if (_ban == null)
             {
                 db.BanAns.Add(new BanAn
                 {
-                    TenBan = txtTenBan.Text.Trim(),
+                    TenBan = tenBan,
                     TrangThai = cmbTrangThai.SelectedItem!.ToString()!
                 });
             }
@@ -94,7 +106,7 @@ namespace DuAn_DineSmart.Forms
                 var b = db.BanAns.Find(_ban.MaBan);
                 if (b != null)
                 {
-                    b.TenBan = txtTenBan.Text.Trim();
+                    b.TenBan = tenBan;
                     b.TrangThai = cmbTrangThai.SelectedItem!.ToString()!;
                 }
             }
@@ -104,15 +116,26 @@ namespace DuAn_DineSmart.Forms
         private void BtnXoa_Click(object? sender, EventArgs e)
         {
             if (MessageBox.Show($"Xóa {_ban?.TenBan}?", "Xác nhận",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             {
-                using var db = new DAL.AppDbContext();
-                var b = db.BanAns.Find(_ban!.MaBan);
-                if (b != null) db.BanAns.Remove(b);
-                db.SaveChanges();
-                DialogResult = DialogResult.OK;
-                Close();
+                return;
             }
+
+            using var db = new AppDbContext();
+            var b = db.BanAns.Find(_ban!.MaBan);
+            if (b == null) return;
+
+            bool dangCoDon = db.DonHangs.Any(d => d.MaBan == b.MaBan && d.TrangThai != BLL.TrangThaiDonHang.HoanThanh);
+            if (dangCoDon)
+            {
+                MessageBox.Show("Bàn đang có đơn chưa hoàn thành, không thể xóa.", "Thông báo");
+                return;
+            }
+
+            db.BanAns.Remove(b);
+            db.SaveChanges();
+            DialogResult = DialogResult.OK;
+            Close();
         }
     }
 }

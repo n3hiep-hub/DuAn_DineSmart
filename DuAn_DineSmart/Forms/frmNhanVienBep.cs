@@ -1,16 +1,39 @@
-﻿using DuAn_DineSmart.DAL;
+﻿using DuAn_DineSmart.BLL;
+using DuAn_DineSmart.DAL;
 using DuAn_DineSmart.Models;
+using DineSmart.Services.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace DuAn_DineSmart.Forms
 {
     public partial class frmNhanVienBep : Form
     {
+        private readonly PollingSyncService _polling = new();
+
         public frmNhanVienBep() { InitializeComponent(); }
 
         private void frmNhanVienBep_Load(object sender, EventArgs e)
         {
             LoadDonHang();
+            _polling.Tick += Polling_Tick;
+            _polling.Start();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _polling.Tick -= Polling_Tick;
+            _polling.Dispose();
+            base.OnFormClosed(e);
+        }
+
+        private void Polling_Tick(object? sender, EventArgs e)
+        {
+            if (IsDisposed || !IsHandleCreated) return;
+            BeginInvoke(new Action(() =>
+            {
+                lblTime.Text = DateTime.Now.ToString("HH:mm");
+                LoadDonHang();
+            }));
         }
 
         private void LoadDonHang()
@@ -21,12 +44,12 @@ namespace DuAn_DineSmart.Forms
 
                 var dsChoPhucVu = db.DonHangs
                     .Include(d => d.Ban)
-                    .Where(d => d.TrangThai == "Chờ phục vụ")
+                    .Where(d => d.TrangThai == TrangThaiDonHang.ChoPhucVu)
                     .OrderBy(d => d.ThoiGian)
                     .ToList();
 
                 int daPhucVu = db.DonHangs
-                    .Count(d => d.TrangThai == "Hoàn thành"
+                    .Count(d => d.TrangThai == TrangThaiDonHang.HoanThanh
                              && d.ThoiGian.Date == DateTime.Today);
 
                 lblChoVal.Text = dsChoPhucVu.Count.ToString();
@@ -113,7 +136,6 @@ namespace DuAn_DineSmart.Forms
                     flpChoPhucVu.Controls.Add(card);
                 }
 
-                // Hiện thông báo nếu không có đơn nào
                 if (dsChoPhucVu.Count == 0)
                 {
                     var lblEmpty = new Label
@@ -140,7 +162,7 @@ namespace DuAn_DineSmart.Forms
             var dh = db.DonHangs.Find(maDH);
             if (dh != null)
             {
-                dh.TrangThai = "Hoàn thành";
+                dh.TrangThai = TrangThaiDonHang.HoanThanh;
                 db.SaveChanges();
             }
             LoadDonHang();

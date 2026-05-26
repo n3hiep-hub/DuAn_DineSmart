@@ -5,11 +5,14 @@ namespace DuAn_DineSmart.Forms
 {
     public partial class frmThucDonDialog : Form
     {
-        private ThucDon? _mon;
-        private TextBox txtTenMon;
-        private ComboBox cmbDanhMuc, cmbTrangThai;
-        private NumericUpDown numGia;
-        private Button btnLuu, btnXoa, btnHuy;
+        private readonly ThucDon? _mon;
+        private TextBox txtTenMon = null!;
+        private ComboBox cmbDanhMuc = null!;
+        private ComboBox cmbTrangThai = null!;
+        private NumericUpDown numGia = null!;
+        private Button btnLuu = null!;
+        private Button btnXoa = null!;
+        private Button btnHuy = null!;
 
         public frmThucDonDialog(ThucDon? mon)
         {
@@ -31,20 +34,19 @@ namespace DuAn_DineSmart.Forms
             Size = new Size(380, 300);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false; MinimizeBox = false;
+            MaximizeBox = false;
+            MinimizeBox = false;
             BackColor = Color.White;
 
             int y = 20;
             Label Lbl(string t) => new Label { Text = t, Location = new Point(20, y), AutoSize = true, Font = new Font("Segoe UI", 9), ForeColor = Color.Gray };
 
-            // Tên món
             Controls.Add(Lbl("Tên món"));
             y += 20;
             txtTenMon = new TextBox { Location = new Point(20, y), Size = new Size(320, 28), Font = new Font("Segoe UI", 10) };
             Controls.Add(txtTenMon);
             y += 40;
 
-            // Danh mục + Giá (2 cột)
             Controls.Add(new Label { Text = "Danh mục", Location = new Point(20, y), AutoSize = true, Font = new Font("Segoe UI", 9), ForeColor = Color.Gray });
             Controls.Add(new Label { Text = "Giá tiền (đ)", Location = new Point(200, y), AutoSize = true, Font = new Font("Segoe UI", 9), ForeColor = Color.Gray });
             y += 20;
@@ -56,7 +58,6 @@ namespace DuAn_DineSmart.Forms
             Controls.Add(numGia);
             y += 45;
 
-            // Trạng thái
             Controls.Add(new Label { Text = "Trạng thái", Location = new Point(20, y), AutoSize = true, Font = new Font("Segoe UI", 9), ForeColor = Color.Gray });
             y += 20;
             cmbTrangThai = new ComboBox { Location = new Point(20, y), Size = new Size(320, 28), DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 10) };
@@ -65,7 +66,6 @@ namespace DuAn_DineSmart.Forms
             Controls.Add(cmbTrangThai);
             y += 45;
 
-            // Buttons
             btnLuu = new Button { Text = "Lưu món", Location = new Point(200, y), Size = new Size(140, 36), BackColor = Color.FromArgb(192, 57, 43), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10), DialogResult = DialogResult.OK };
             btnLuu.FlatAppearance.BorderSize = 0;
             btnLuu.Click += BtnLuu_Click;
@@ -81,18 +81,29 @@ namespace DuAn_DineSmart.Forms
 
         private void BtnLuu_Click(object? sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtTenMon.Text))
+            var tenMon = txtTenMon.Text.Trim();
+            if (string.IsNullOrWhiteSpace(tenMon))
             {
                 MessageBox.Show("Vui lòng nhập tên món!", "Thông báo");
                 DialogResult = DialogResult.None;
                 return;
             }
+
             using var db = new AppDbContext();
+            int maMonHienTai = _mon?.MaMon ?? 0;
+            bool tonTaiTen = db.ThucDons.Any(m => m.TenMon == tenMon && m.MaMon != maMonHienTai);
+            if (tonTaiTen)
+            {
+                MessageBox.Show("Tên món đã tồn tại. Vui lòng nhập tên khác!", "Thông báo");
+                DialogResult = DialogResult.None;
+                return;
+            }
+
             if (_mon == null)
             {
                 db.ThucDons.Add(new ThucDon
                 {
-                    TenMon = txtTenMon.Text.Trim(),
+                    TenMon = tenMon,
                     DanhMuc = cmbDanhMuc.SelectedItem!.ToString()!,
                     GiaTien = numGia.Value,
                     TrangThai = cmbTrangThai.SelectedIndex == 0
@@ -103,7 +114,7 @@ namespace DuAn_DineSmart.Forms
                 var m = db.ThucDons.Find(_mon.MaMon);
                 if (m != null)
                 {
-                    m.TenMon = txtTenMon.Text.Trim();
+                    m.TenMon = tenMon;
                     m.DanhMuc = cmbDanhMuc.SelectedItem!.ToString()!;
                     m.GiaTien = numGia.Value;
                     m.TrangThai = cmbTrangThai.SelectedIndex == 0;
@@ -115,15 +126,30 @@ namespace DuAn_DineSmart.Forms
         private void BtnXoa_Click(object? sender, EventArgs e)
         {
             if (MessageBox.Show($"Xóa món \"{_mon?.TenMon}\"?", "Xác nhận",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             {
-                using var db = new AppDbContext();
-                var m = db.ThucDons.Find(_mon!.MaMon);
-                if (m != null) db.ThucDons.Remove(m);
-                db.SaveChanges();
-                DialogResult = DialogResult.OK;
-                Close();
+                return;
             }
+
+            using var db = new AppDbContext();
+            var m = db.ThucDons.Find(_mon!.MaMon);
+            if (m == null) return;
+
+            bool daPhatSinhDon = db.ChiTietDonHangs.Any(c => c.MaMon == m.MaMon);
+            if (daPhatSinhDon)
+            {
+                m.TrangThai = false;
+                db.SaveChanges();
+                MessageBox.Show("Món đã phát sinh đơn nên sẽ được chuyển sang 'Tạm ngưng' thay vì xóa.", "Thông báo");
+            }
+            else
+            {
+                db.ThucDons.Remove(m);
+                db.SaveChanges();
+            }
+
+            DialogResult = DialogResult.OK;
+            Close();
         }
     }
 }

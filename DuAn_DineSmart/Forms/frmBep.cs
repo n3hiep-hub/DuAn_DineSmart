@@ -1,16 +1,39 @@
-﻿using DuAn_DineSmart.DAL;
+﻿using DuAn_DineSmart.BLL;
+using DuAn_DineSmart.DAL;
 using DuAn_DineSmart.Models;
+using DineSmart.Services.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace DuAn_DineSmart.Forms
 {
     public partial class frmBep : Form
     {
+        private readonly PollingSyncService _polling = new();
+
         public frmBep() { InitializeComponent(); }
 
         private void frmBep_Load(object sender, EventArgs e)
         {
             LoadDonHang();
+            _polling.Tick += Polling_Tick;
+            _polling.Start();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _polling.Tick -= Polling_Tick;
+            _polling.Dispose();
+            base.OnFormClosed(e);
+        }
+
+        private void Polling_Tick(object? sender, EventArgs e)
+        {
+            if (IsDisposed || !IsHandleCreated) return;
+            BeginInvoke(new Action(() =>
+            {
+                lblTime.Text = DateTime.Now.ToString("HH:mm – dddd, dd/MM/yyyy");
+                LoadDonHang();
+            }));
         }
 
         private void LoadDonHang()
@@ -21,18 +44,18 @@ namespace DuAn_DineSmart.Forms
 
                 var dsChoBep = db.DonHangs
                     .Include(d => d.Ban)
-                    .Where(d => d.TrangThai == "Chờ bếp")
+                    .Where(d => d.TrangThai == TrangThaiDonHang.ChoBep)
                     .OrderBy(d => d.ThoiGian)
                     .ToList();
 
                 var dsDangLam = db.DonHangs
                     .Include(d => d.Ban)
-                    .Where(d => d.TrangThai == "Đang làm")
+                    .Where(d => d.TrangThai == TrangThaiDonHang.DangLam)
                     .OrderBy(d => d.ThoiGian)
                     .ToList();
 
                 int xong = db.DonHangs
-                    .Count(d => d.TrangThai == "Hoàn thành"
+                    .Count(d => d.TrangThai == TrangThaiDonHang.HoanThanh
                              && d.ThoiGian.Date == DateTime.Today);
 
                 lblChoVal.Text = dsChoBep.Count.ToString();
@@ -87,8 +110,6 @@ namespace DuAn_DineSmart.Forms
                 };
 
                 int y = 12;
-
-                // Tên bàn
                 var lblBan = new Label
                 {
                     Text = dh.Ban?.TenBan ?? $"Bàn {dh.MaBan}",
@@ -100,7 +121,6 @@ namespace DuAn_DineSmart.Forms
                 card.Controls.Add(lblBan);
                 y += 26;
 
-                // Thời gian
                 string tgText = isDangLam
                     ? $"Bắt đầu {phutCho} phút trước"
                     : urgent ? $"⚠ Đã chờ {phutCho} phút"
@@ -117,7 +137,6 @@ namespace DuAn_DineSmart.Forms
                 card.Controls.Add(lblTG);
                 y += 28;
 
-                // Danh sách món
                 foreach (var ct in chiTiet)
                 {
                     var lblMon = new Label
@@ -133,13 +152,9 @@ namespace DuAn_DineSmart.Forms
                 }
 
                 y += 8;
-
-                // Nút hành động
                 var btn = new Button
                 {
-                    Text = isDangLam
-                        ? "✓ Hoàn thành – Gọi phục vụ"
-                        : "▶ Bắt đầu làm",
+                    Text = isDangLam ? "✓ Hoàn thành – Gọi phục vụ" : "▶ Bắt đầu làm",
                     Location = new Point(12, y),
                     Size = new Size(444, 36),
                     FlatStyle = FlatStyle.Flat,
@@ -173,7 +188,7 @@ namespace DuAn_DineSmart.Forms
             var dh = db.DonHangs.Find(maDH);
             if (dh != null)
             {
-                dh.TrangThai = "Đang làm";
+                dh.TrangThai = TrangThaiDonHang.DangLam;
                 db.SaveChanges();
             }
             LoadDonHang();
@@ -186,7 +201,7 @@ namespace DuAn_DineSmart.Forms
             var dh = db.DonHangs.Find(maDH);
             if (dh != null)
             {
-                dh.TrangThai = "Chờ phục vụ"; // ← đổi từ "Hoàn thành"
+                dh.TrangThai = TrangThaiDonHang.ChoPhucVu;
                 db.SaveChanges();
             }
             MessageBox.Show("Đã xong! Nhân viên sẽ mang ra bàn.", "Bếp",
