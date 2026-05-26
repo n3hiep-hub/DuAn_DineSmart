@@ -1,17 +1,35 @@
 ﻿using DuAn_DineSmart.DAL;
 using DuAn_DineSmart.Models;
+using DineSmart.Core.DTOs;
+using DineSmart.Data.Adapters;
+using DineSmart.Data.Repositories;
+using DineSmart.Services.Orders;
+using DineSmart.Services.Sync;
+using System.Text.Json;
 
 namespace DuAn_DineSmart.Forms
 {
     public partial class frmDatMon : Form
     {
-        private DashboardDAL _dalBan = new();
+        private readonly DashboardDAL _dalBan = new();
+        private readonly OrderService _orderService;
         private List<ThucDon> _dsMonAn = new();
-        private Dictionary<int, (ThucDon mon, int soLuong)> _gioMon = new();
+        private readonly Dictionary<int, (ThucDon mon, int soLuong)> _gioMon = new();
         private int _maBanChon = -1;
         private string _filterDanhMuc = "Tất cả";
+        private readonly string _offlinePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "offline-orders.json");
 
-        public frmDatMon() { InitializeComponent(); }
+        public frmDatMon()
+        {
+            InitializeComponent();
+
+            var dbFactory = new AppDbContextFactory();
+            _orderService = new OrderService(
+                new OrderRepository(dbFactory),
+                new MenuRepository(dbFactory),
+                new TableRepository(dbFactory),
+                new NoOpNotificationService());
+        }
 
         private void frmDatMon_Load(object sender, EventArgs e)
         {
@@ -20,6 +38,7 @@ namespace DuAn_DineSmart.Forms
             lbBanAn.SelectedIndexChanged += LbBanAn_Changed;
             btnGuiBep.Click += BtnGuiBep_Click;
             btnXoaTat.Click += (s, ev) => { _gioMon.Clear(); RefreshGio(); };
+            TrySyncOfflineOrders();
         }
 
         private void LoadBanAn()
@@ -49,7 +68,6 @@ namespace DuAn_DineSmart.Forms
             using var db = new AppDbContext();
             _dsMonAn = db.ThucDons.Where(m => m.TrangThai).ToList();
 
-            // Tạo nút danh mục
             pnlDanhMuc.Controls.Clear();
             var danhMucs = new[] { "Tất cả" }
                 .Concat(_dsMonAn.Select(m => m.DanhMuc).Distinct())
@@ -108,35 +126,9 @@ namespace DuAn_DineSmart.Forms
                     ControlPaint.DrawBorder(e.Graphics, card.ClientRectangle,
                         Color.FromArgb(220, 220, 220), ButtonBorderStyle.Solid);
 
-                var lblTen = new Label
-                {
-                    Text = mon.TenMon,
-                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(50, 50, 50),
-                    Location = new Point(8, 8),
-                    Size = new Size(124, 32),
-                };
-
-                var lblGia = new Label
-                {
-                    Text = mon.GiaTien.ToString("N0") + "đ",
-                    Font = new Font("Segoe UI", 9),
-                    ForeColor = Color.FromArgb(192, 57, 43),
-                    Location = new Point(8, 40),
-                    AutoSize = true
-                };
-
-                var btnThem = new Button
-                {
-                    Text = "+ Thêm",
-                    Size = new Size(124, 26),
-                    Location = new Point(8, 58),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(192, 57, 43),
-                    ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 8),
-                    Tag = mon
-                };
+                var lblTen = new Label { Text = mon.TenMon, Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(50, 50, 50), Location = new Point(8, 8), Size = new Size(124, 32) };
+                var lblGia = new Label { Text = mon.GiaTien.ToString("N0") + "đ", Font = new Font("Segoe UI", 9), ForeColor = Color.FromArgb(192, 57, 43), Location = new Point(8, 40), AutoSize = true };
+                var btnThem = new Button { Text = "+ Thêm", Size = new Size(124, 26), Location = new Point(8, 58), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(192, 57, 43), ForeColor = Color.White, Font = new Font("Segoe UI", 8), Tag = mon };
                 btnThem.FlatAppearance.BorderSize = 0;
                 btnThem.Click += BtnThem_Click;
 
@@ -147,17 +139,11 @@ namespace DuAn_DineSmart.Forms
 
         private void BtnThem_Click(object? sender, EventArgs e)
         {
-            if (_maBanChon < 0)
-            {
-                MessageBox.Show("Vui lòng chọn bàn trước!", "Thông báo");
-                return;
-            }
+            if (_maBanChon < 0) { MessageBox.Show("Vui lòng chọn bàn trước!", "Thông báo"); return; }
             if (sender is Button btn && btn.Tag is ThucDon mon)
             {
-                if (_gioMon.ContainsKey(mon.MaMon))
-                    _gioMon[mon.MaMon] = (mon, _gioMon[mon.MaMon].soLuong + 1);
-                else
-                    _gioMon[mon.MaMon] = (mon, 1);
+                if (_gioMon.ContainsKey(mon.MaMon)) _gioMon[mon.MaMon] = (mon, _gioMon[mon.MaMon].soLuong + 1);
+                else _gioMon[mon.MaMon] = (mon, 1);
                 RefreshGio();
             }
         }
@@ -180,54 +166,73 @@ namespace DuAn_DineSmart.Forms
             lblTongTien.Text = $"Tổng: {tong:N0}đ";
         }
 
-        private void BtnGuiBep_Click(object? sender, EventArgs e)
+        private async void BtnGuiBep_Click(object? sender, EventArgs e)
         {
             if (_maBanChon < 0) { MessageBox.Show("Vui lòng chọn bàn!"); return; }
             if (_gioMon.Count == 0) { MessageBox.Show("Giỏ món đang trống!"); return; }
 
+            var request = new CreateOrderRequest
+            {
+                TableId = _maBanChon,
+                Items = _gioMon.Values.Select(v => new CreateOrderItemRequest { MenuItemId = v.mon.MaMon, Quantity = v.soLuong }).ToList()
+            };
+
             try
             {
-                using var db = new AppDbContext();
-
-                // Tạo đơn hàng mới
-                var donHang = new DonHang
-                {
-                    MaBan = _maBanChon,
-                    SoMon = _gioMon.Values.Sum(v => v.soLuong),
-                    TrangThai = "Chờ bếp",
-                    TongTien = _gioMon.Values.Sum(v => v.mon.GiaTien * v.soLuong),
-                    ThoiGian = DateTime.Now
-                };
-                db.DonHangs.Add(donHang);
-                db.SaveChanges();
-
-                // Thêm chi tiết
-                foreach (var kv in _gioMon)
-                {
-                    db.ChiTietDonHangs.Add(new ChiTietDonHang
-                    {
-                        MaDonHang = donHang.MaDonHang,
-                        MaMon = kv.Value.mon.MaMon,
-                        SoLuong = kv.Value.soLuong,
-                        DonGia = kv.Value.mon.GiaTien
-                    });
-                }
-
-                // Cập nhật trạng thái bàn
-                var ban = db.BanAns.Find(_maBanChon);
-                if (ban != null) ban.TrangThai = "Có khách";
-                db.SaveChanges();
-
-                MessageBox.Show("Đã gửi bếp thành công!", "Thành công",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                _gioMon.Clear();
-                RefreshGio();
-                LoadBanAn();
+                int maDon = await _orderService.CreateOrderAsync(request);
+                MessageBox.Show($"Đã gửi bếp thành công! Mã đơn: #{maDon}", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
+                SaveOfflineOrder(request);
+                MessageBox.Show("Mất kết nối DB. Đơn đã được lưu offline và sẽ đồng bộ lại khi có mạng.", "Offline fallback", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+            _gioMon.Clear();
+            RefreshGio();
+            LoadBanAn();
+        }
+
+        private void SaveOfflineOrder(CreateOrderRequest request)
+        {
+            var list = LoadOfflineOrders();
+            list.Add(request);
+            File.WriteAllText(_offlinePath, JsonSerializer.Serialize(list));
+        }
+
+        private List<CreateOrderRequest> LoadOfflineOrders()
+        {
+            if (!File.Exists(_offlinePath)) return new List<CreateOrderRequest>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<CreateOrderRequest>>(File.ReadAllText(_offlinePath)) ?? new List<CreateOrderRequest>();
+            }
+            catch
+            {
+                return new List<CreateOrderRequest>();
+            }
+        }
+
+        private async void TrySyncOfflineOrders()
+        {
+            var list = LoadOfflineOrders();
+            if (list.Count == 0) return;
+
+            var remain = new List<CreateOrderRequest>();
+            foreach (var req in list)
+            {
+                try { await _orderService.CreateOrderAsync(req); }
+                catch { remain.Add(req); }
+            }
+
+            if (remain.Count == 0)
+            {
+                if (File.Exists(_offlinePath)) File.Delete(_offlinePath);
+                MessageBox.Show("Đã đồng bộ thành công các đơn offline.", "Đồng bộ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                File.WriteAllText(_offlinePath, JsonSerializer.Serialize(remain));
             }
         }
     }
