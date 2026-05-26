@@ -273,7 +273,11 @@ namespace DuAn_DineSmart.Forms
                 using var db = new AppDbContext();
 
                 var dh = db.DonHangs.Find(_donHangHienTai.MaDonHang);
-                if (dh != null) dh.TrangThai = TrangThaiDonHang.HoanThanh;
+                if (dh != null)
+                {
+                    dh.TrangThai = TrangThaiDonHang.HoanThanh;
+                    dh.TongTien = _tongThanhToan;
+                }
 
                 var ban = db.BanAns.Find(_donHangHienTai.MaBan);
                 if (ban != null) ban.TrangThai = "Trống";
