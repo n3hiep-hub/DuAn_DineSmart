@@ -8,7 +8,7 @@ namespace DuAn_DineSmart.Forms
 {
     public partial class frmNhanVienBep : Form
     {
-        private readonly PollingSyncService _polling = new(5000);
+        private readonly PollingSyncService _polling = new();
 
         public frmNhanVienBep() { InitializeComponent(); }
 
